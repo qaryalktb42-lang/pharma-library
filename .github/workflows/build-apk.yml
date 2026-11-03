@@ -30,6 +30,9 @@ jobs:
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build debug APK
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: ./gradlew --no-daemon clean assembleDebug
 
       - name: Verify APK output

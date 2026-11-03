@@ -15,10 +15,13 @@
 - فصل نماذج البيانات والمستودع المحلي عن واجهة Compose في `LocalLibrary.kt`.
 - تنقل فعلي بين جميع المستويات الأكاديمية، بدل صفحات Placeholder.
 - إضافة مخطط Supabase أولي في `supabase/migrations/0001_pharma_library.sql` يتضمن الجداول والعلاقات وRLS وBucket خاص.
+- إضافة عميل Supabase Kotlin في `SupabaseClient.kt` مع قراءة الإعدادات من `local.properties` أو GitHub Secrets. أسماء أسرار Actions المطلوبة هي `SUPABASE_URL` و`SUPABASE_PUBLISHABLE_KEY`.
 
 البيانات الحالية تعليمية محلية وليست محتوى سحابياً نهائياً. لا يتم اختلاق ملفات أو حسابات أو صلاحيات حقيقية قبل ربط Supabase.
 
 مخطط Supabase موجود في المستودع للتحضير، لكنه لم يُطبّق على مشروع Supabase عن بُعد بعد. ملفات Storage خاصة، وسيحتاج عرضها للطلاب إلى signed URLs من طبقة موثوقة عند تنفيذ الربط.
+
+تم اختبار Project URL وPublishable key فعلياً؛ الاتصال يستجيب، لكن جدول `study_years` غير موجود حتى الآن. تعذر على اتصال GitHub الحالي إنشاء Secrets تلقائياً بسبب صلاحية Actions، لذلك يجب إضافتهما يدوياً من إعدادات المستودع قبل الاعتماد على APK السحابي. يجب تشغيل ملف migration في Supabase SQL Editor قبل تحميل البيانات.
 
 ## ما سيأتي عند ربط Supabase
 
