@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val Navy = Color(0xFF102A43)
 private val Teal = Color(0xFF0F8B8D)
@@ -56,6 +58,21 @@ class MainActivity : ComponentActivity() {
 fun PharmaLibraryApp() {
     var route by remember { mutableStateOf<Route>(Route.Home) }
     var searchText by rememberSaveable { mutableStateOf("") }
+    var cloudStatus by remember { mutableStateOf("جارٍ فحص الاتصال السحابي…") }
+    LaunchedEffect(Unit) {
+        cloudStatus = withContext(Dispatchers.IO) {
+            SupabaseLibraryRepository().loadVisibleYears().fold(
+                onSuccess = { years -> "متصل بسحابة Supabase • ${years.size} سنوات منشورة" },
+                onFailure = { error ->
+                    if (error.message?.contains("Could not find the table") == true) {
+                        "الاتصال يعمل • أكمل إعداد جداول Supabase"
+                    } else {
+                        "الوضع المحلي • سيتم التبديل للسحابة بعد الإعداد"
+                    }
+                }
+            )
+        }
+    }
     MaterialTheme(colorScheme = lightColorScheme(primary = Navy, secondary = Teal, background = Pale, surface = Color.White)) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Scaffold(
@@ -71,7 +88,7 @@ fun PharmaLibraryApp() {
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding)) {
                     when (val current = route) {
-                        Route.Home -> HomeScreen(searchText, { searchText = it }, { route = Route.SearchResults(searchText) }, { route = it })
+                        Route.Home -> HomeScreen(cloudStatus, searchText, { searchText = it }, { route = Route.SearchResults(searchText) }, { route = it })
                         Route.Library -> LibraryScreen { route = it }
                         Route.Downloads -> DownloadsScreen { repository.toggleDownloaded(it) }
                         Route.Admin -> AdminScreen()
@@ -94,9 +111,10 @@ private fun RowScope.NavItem(selected: Boolean, label: String, icon: androidx.co
 }
 
 @Composable
-private fun HomeScreen(query: String, onQueryChange: (String) -> Unit, onSearch: () -> Unit, open: (Route) -> Unit) {
+private fun HomeScreen(cloudStatus: String, query: String, onQueryChange: (String) -> Unit, onSearch: () -> Unit, open: (Route) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
         item { BrandHeader() }
+        item { CloudStatusCard(cloudStatus) }
         item {
             OutlinedTextField(value = query, onValueChange = onQueryChange, modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(16.dp), placeholder = { Text("ابحث عن مادة أو محاضرة أو ملف") }, leadingIcon = { Icon(Icons.Default.Search, null) }, trailingIcon = { IconButton(onClick = onSearch) { Icon(Icons.Default.ArrowForward, "بحث") } })
         }
@@ -221,6 +239,24 @@ private fun AdminScreen() {
 @Composable private fun BrandHeader() { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(48.dp).clip(RoundedCornerShape(15.dp)).background(Navy), contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalPharmacy, null, tint = Color.White, modifier = Modifier.size(27.dp)) }; Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text("PHARMA LIBRARY", fontWeight = FontWeight.ExtraBold, color = Navy, fontSize = 18.sp); Text("مكتبتك العلمية في علوم الصيدلة", color = Muted, fontSize = 12.sp) }; Surface(color = Color(0xFFE1F3F1), shape = CircleShape) { Text("محلي", color = Teal, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) } } }
 @Composable private fun PageTitle(title: String, subtitle: String) { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Navy); Text(subtitle, color = Muted) } }
 @Composable private fun DetailListHeader(title: String, subtitle: String, back: () -> Unit) { Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(18.dp)) { IconButton(onClick = back) { Icon(Icons.Default.ArrowForward, "رجوع") }; Column { Text(title, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Navy); Text(subtitle, color = Muted, fontSize = 12.sp) } } }
+@Composable
+private fun CloudStatusCard(status: String) {
+    val ready = status.startsWith("متصل")
+    val needsSetup = status.contains("أكمل")
+    val color = when {
+        ready -> Color(0xFFE1F3F1)
+        needsSetup -> Color(0xFFFFF1D6)
+        else -> Color(0xFFEAF0F5)
+    }
+    Surface(shape = RoundedCornerShape(14.dp), color = color, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (ready) Icons.Default.CloudDone else Icons.Default.CloudQueue, null, tint = if (ready) Teal else Muted)
+            Spacer(Modifier.width(9.dp))
+            Text(status, color = Navy, fontSize = 12.sp)
+        }
+    }
+}
+
 @Composable private fun SectionHeading(title: String, subtitle: String) { Column(verticalArrangement = Arrangement.spacedBy(3.dp)) { Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Navy); Text(subtitle, fontSize = 12.sp, color = Muted) } }
 @Composable private fun FeatureCard(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) { Surface(modifier.clickable(onClick = onClick), shape = RoundedCornerShape(18.dp), color = Color.White, shadowElevation = 1.dp) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Icon(icon, null, tint = Teal, modifier = Modifier.size(25.dp)); Text(title, fontWeight = FontWeight.Bold, color = Navy, fontSize = 14.sp); Text(subtitle, color = Muted, fontSize = 11.sp) } } }
 @Composable private fun LibraryRow(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) { Surface(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), color = Color.White) { Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFFE8F4F3)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Teal) }; Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.Bold, color = Navy); Text(subtitle, fontSize = 11.sp, color = Muted) }; Icon(Icons.Default.ChevronLeft, null, tint = Muted) } } }
